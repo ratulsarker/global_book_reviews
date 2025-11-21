@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+
+# Environment variables (NEVER commit this!)
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Streamlit
+.streamlit/
+
+# Generated/Temporary files
+recommendations_graph.html
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database files (using MySQL server, not SQLite)
+*.db
+goodbooks.db
+

@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyc
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Environment Variables - NEVER COMMIT!
+.env
+Dashboard603/.env
+
+# Streamlit
+.streamlit/
+
+# Generated files
+Dashboard603/recommendations_graph.html
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Keep data and dump files - they're needed!
+# Dashboard603/data/
+# goodbooks-2025-11-20T18-16-45.dump
+
