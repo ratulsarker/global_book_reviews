@@ -19,8 +19,14 @@ driver = GraphDatabase.driver(
 # 1. Basic tag + book queries for main dashboard
 # ---------------------------------------------------------
 def get_all_tags(tx):
+    """Get all meaningful tags (filters out junk tags like numbers and symbols)."""
     query = """
     MATCH (t:Tag)
+    WHERE t.name IS NOT NULL 
+      AND t.name <> ''
+      AND NOT t.name =~ '^[0-9-]+$'
+      AND NOT t.name IN ['-', '--', '---', '1', '2', '3']
+      AND size(t.name) > 1
     RETURN t.name AS tag
     ORDER BY tag
     """
@@ -81,19 +87,52 @@ def get_recommendations_for_book(tx, title, limit=30):
     return list(tx.run(query, title=title, limit=limit))
 
 
-def get_recommendation_graph_data(tx, title, limit=40):
+def get_recommendation_graph_data(tx, title, num_books=10, min_rating=3.5):
     """
-    Data for visualization: main book, tags, other books sharing those tags.
+    Data for visualization: Shows multiple books and how they interconnect through tags.
+    Returns a richer network showing book communities.
     """
     query = """
-    MATCH (b:Book {title:$title})-[:TAGGED_AS]->(t:Tag)<-[:TAGGED_AS]-(other:Book)
-    WHERE other <> b
-    RETURN b.title AS main_book,
+    // Get the main book and its tags
+    MATCH (mainBook:Book {title:$title})-[:TAGGED_AS]->(mainTag:Tag)
+    WHERE mainTag.name IS NOT NULL 
+      AND NOT mainTag.name =~ '^[0-9-]+$'
+      AND size(mainTag.name) > 2
+    WITH mainBook, COLLECT(DISTINCT mainTag) AS mainTags
+    
+    // Find top recommended books that share these tags
+    UNWIND mainTags AS t
+    MATCH (t)<-[:TAGGED_AS]-(recBook:Book)
+    WHERE recBook <> mainBook
+      AND recBook.average_rating >= $min_rating
+    WITH mainBook, mainTags, recBook, COUNT(DISTINCT t) AS shared_tags, recBook.average_rating AS rating
+    ORDER BY shared_tags DESC, rating DESC
+    LIMIT $num_books
+    
+    // Collect the top books and keep mainTags
+    WITH mainBook, mainTags, COLLECT(recBook) AS topBooks
+    
+    // Get tag counts for all books first
+    UNWIND [mainBook] + topBooks AS book
+    OPTIONAL MATCH (book)-[:TAGGED_AS]->(allTags:Tag)
+    WITH mainBook, mainTags, book, COUNT(allTags) AS tag_count, book.average_rating AS rating
+    
+    // Now get the shared tags for visualization
+    MATCH (book)-[:TAGGED_AS]->(t:Tag)
+    WHERE t IN mainTags
+    WITH mainBook, book, t, 
+         CASE WHEN book = mainBook THEN 1 ELSE 0 END AS is_main,
+         rating,
+         tag_count
+    RETURN mainBook.title AS main_book,
+           book.title AS book_title,
            t.name AS tag,
-           other.title AS recommended_book
-    LIMIT $limit
+           is_main,
+           rating,
+           tag_count
+    ORDER BY is_main DESC, rating DESC
     """
-    return list(tx.run(query, title=title, limit=limit))
+    return list(tx.run(query, title=title, num_books=num_books, min_rating=min_rating))
 
 
 # ---------------------------------------------------------
@@ -152,8 +191,13 @@ def get_authors_by_tag(tx, tag_name, limit=50):
 
 
 def get_top_tags(tx, limit):
+    """Get top tags, filtering out meaningless ones."""
     query = """
     MATCH (t:Tag)<-[:TAGGED_AS]-(b:Book)
+    WHERE t.name IS NOT NULL 
+      AND t.name <> ''
+      AND NOT t.name =~ '^[0-9-]+$'
+      AND size(t.name) > 1
     RETURN t.name AS tag,
            COUNT(b) AS book_count
     ORDER BY book_count DESC, tag ASC

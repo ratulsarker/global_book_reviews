@@ -179,25 +179,127 @@ def neo4j_page():
             # ============================================================
             # 3. RECOMMENDATION GRAPH VISUALIZATION
             # ============================================================
-            st.subheader("🕸️ Book Relationship Network Visualization")
+            st.subheader("🕸️ Book Community Network Visualization")
 
-            graph_data = run_neo4j_read(
-                get_recommendation_graph_data, st.session_state.selected_title
-            )
+            # Graph controls
+            st.markdown("**📊 Customize Your Network:**")
+            graph_col1, graph_col2 = st.columns([2, 1])
+            
+            with graph_col1:
+                num_similar_books = st.slider(
+                    "Number of Similar Books to Show",
+                    min_value=5,
+                    max_value=20,
+                    value=10,
+                    step=1,
+                    key="graph_num_books",
+                    help="More books = richer network but potentially cluttered"
+                )
+            
+            with graph_col2:
+                min_book_rating = st.slider(
+                    "Minimum Book Rating",
+                    min_value=3.0,
+                    max_value=4.8,
+                    value=3.5,
+                    step=0.1,
+                    key="graph_min_rating",
+                    help="Only show highly-rated similar books"
+                )
+            
+            if st.button("🔄 Generate Network Graph", key="generate_graph_btn", use_container_width=True):
+                graph_data = run_neo4j_read(
+                    get_recommendation_graph_data, 
+                    st.session_state.selected_title,
+                    num_similar_books,
+                    min_book_rating
+                )
 
-            if graph_data:
-                # Add legend
-                st.info("**Graph Legend:** 🔵 Blue Box = Your Book | 🟣 Purple Dots = Genres/Tags | 🟢 Green = Similar Books | 💡 Interactive: Drag, Zoom, Hover")
-                
-                net = build_recommendation_graph(graph_data)
-                net.save_graph("recommendations_graph.html")
+                if graph_data:
+                    # Enhanced legend with stats
+                    unique_books = len(set(r["book_title"] for r in graph_data))
+                    unique_tags = len(set(r["tag"] for r in graph_data))
+                    
+                    st.success(f"✓ Network generated: {unique_books} books connected through {unique_tags} shared tags")
+                    st.info("**Graph Legend:** 🔵 Blue Box = Your Selected Book | 🟣 Purple Dots = Shared Genres/Tags | 🟢 Green Ellipses = Similar Books\n\n**💡 Tips:** Hover over nodes for details | Larger nodes = more connections | Drag to rearrange | Scroll to zoom")
+                    
+                    net = build_recommendation_graph(graph_data)
+                    if net:
+                        net.save_graph("recommendations_graph.html")
 
-                with open("recommendations_graph.html", "r", encoding="utf-8") as f:
-                    html_content = f.read()
+                        with open("recommendations_graph.html", "r", encoding="utf-8") as f:
+                            html_content = f.read()
+                        
+                        # Inject JavaScript to disable physics quickly - minimal movement
+                        stabilization_script = """
+                        <script>
+                        (function() {
+                            function disablePhysicsQuickly() {
+                                try {
+                                    // Find all script tags and look for network variable
+                                    var scripts = document.querySelectorAll('script');
+                                    for (var s of scripts) {
+                                        var content = s.innerHTML || s.textContent || '';
+                                        if (content.includes('new vis.Network')) {
+                                            // Extract network variable name
+                                            var match = content.match(/var\\s+(\\w+)\\s*=\\s*new\\s+vis\\.Network/);
+                                            if (match) {
+                                                var netVar = match[1];
+                                                // Wait for network to be created
+                                                var checkInterval = setInterval(function() {
+                                                    try {
+                                                        var network = eval(netVar);
+                                                        if (network && typeof network.on === 'function') {
+                                                            clearInterval(checkInterval);
+                                                            // Disable physics immediately after stabilization starts
+                                                            network.on("stabilizationStart", function() {
+                                                                // Disable after just 1 second of stabilization
+                                                                setTimeout(function() {
+                                                                    try {
+                                                                        network.setOptions({ physics: false });
+                                                                    } catch(e) {}
+                                                                }, 1000);
+                                                            });
+                                                            // Disable physics after stabilization completes
+                                                            network.on("stabilizationEnd", function() {
+                                                                network.setOptions({ physics: false });
+                                                            });
+                                                            // Backup: disable after 2 seconds regardless
+                                                            setTimeout(function() {
+                                                                try {
+                                                                    network.setOptions({ physics: false });
+                                                                } catch(e) {}
+                                                            }, 2000);
+                                                        }
+                                                    } catch(e) {
+                                                        // Variable not ready yet
+                                                    }
+                                                }, 50);
+                                                setTimeout(function() { clearInterval(checkInterval); }, 3000);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                } catch(e) {
+                                    console.log('Physics disable script error:', e);
+                                }
+                            }
+                            if (document.readyState === 'loading') {
+                                document.addEventListener('DOMContentLoaded', disablePhysicsQuickly);
+                            } else {
+                                setTimeout(disablePhysicsQuickly, 200);
+                            }
+                        })();
+                        </script>
+                        """
+                        # Insert script before closing body tag
+                        html_content = html_content.replace('</body>', stabilization_script + '</body>')
 
-                components.html(html_content, height=650, scrolling=False)
-            else:
-                st.info("Insufficient data to generate network visualization.")
+                        components.html(html_content, height=770, scrolling=False)
+                    else:
+                        st.warning("Graph generation failed - insufficient data")
+                else:
+                    st.info("Insufficient data to generate network visualization. Try lowering the minimum rating.")
         else:
             st.info("💡 **Get Started:** Search for a book above to view personalized recommendations and network visualization.")
 
@@ -332,10 +434,10 @@ def neo4j_page():
                 with driver.session() as session:
                     top_tags_records = session.execute_read(get_top_tags, limit=50)
                     tags_df = pd.DataFrame([dict(r) for r in top_tags_records])
-
-                    st.write("### 🏷️ Most Popular Tags/Genres")
-                    st.dataframe(tags_df, use_container_width=True, height=400)
-                    st.caption(f"Displaying top {len(tags_df)} tags by book count")
+                
+                st.write("### 🏷️ Most Popular Tags/Genres")
+                st.dataframe(tags_df, use_container_width=True, height=400)
+                st.caption(f"Displaying top {len(tags_df)} tags by book count")
             except Exception as e:
                 st.error(f"Analysis error: {e}")
 
@@ -423,24 +525,37 @@ def sql_page():
         
         st.markdown("---")
         
-        # Top Rated Books
-        st.subheader("⭐ Highest-Rated Books")
-        min_ratings = st.slider("Minimum Rating Count Threshold", 100, 10000, 1000, 100, key="top_rated_slider")
-        top_books = sql.get_top_rated_books(limit=20, min_ratings=min_ratings)
+        # Top Rated Books with better controls
+        st.subheader("⭐ Top-Rated Books Analysis")
+        
+        col_a, col_b = st.columns([3, 1])
+        with col_a:
+            min_ratings = st.slider("Minimum Rating Count", 50, 5000, 500, 50, key="top_rated_slider")
+        with col_b:
+            num_books = st.selectbox("Show Top", [25, 50, 100, 200], index=1, key="num_top_books")
+        
+        top_books = sql.get_top_rated_books(limit=num_books, min_ratings=min_ratings)
         if not top_books.empty:
-            st.dataframe(top_books, use_container_width=True)
-            st.caption(f"Showing books with at least {min_ratings:,} ratings")
+            # Add ranking column
+            top_books_display = top_books.copy()
+            top_books_display.insert(0, 'Rank', range(1, len(top_books_display) + 1))
+            
+            st.dataframe(top_books_display, use_container_width=True, height=400)
+            st.caption(f"📊 Showing {len(top_books)} books with ≥{min_ratings:,} ratings | Sorted by average rating")
         else:
-            st.info("No books meet the current rating threshold.")
+            st.info(f"No books found with at least {min_ratings:,} ratings. Try lowering the threshold.")
         
         st.markdown("---")
         
         # Most Rated Books
-        st.subheader("🔥 Most Popular Books by Rating Volume")
-        most_rated = sql.get_most_rated_books(limit=15)
+        st.subheader("🔥 Most Reviewed Books")
+        num_popular = st.selectbox("Number of Books to Display", [20, 50, 100], index=1, key="num_popular")
+        most_rated = sql.get_most_rated_books(limit=num_popular)
         if not most_rated.empty:
-            st.dataframe(most_rated, use_container_width=True)
-            st.caption("Ranked by number of ratings received")
+            most_rated_display = most_rated.copy()
+            most_rated_display.insert(0, 'Rank', range(1, len(most_rated_display) + 1))
+            st.dataframe(most_rated_display, use_container_width=True, height=400)
+            st.caption(f"📊 Top {len(most_rated)} books by review volume | Useful for identifying trending titles")
 
     # ============================================================
     # TAB 2 – AUTHORS
@@ -448,24 +563,33 @@ def sql_page():
     with tab2:
         st.subheader("👥 Author Performance Metrics")
         
-        limit = st.slider("Number of Authors to Display", 5, 50, 15, key="author_limit")
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            limit = st.slider("Number of Authors to Display", 10, 100, 50, 10, key="author_limit")
+        with col2:
+            show_chart = st.checkbox("Show Visualization", value=True, key="show_author_chart")
         
         top_authors_df = sql.get_top_authors(limit=limit)
         
         if not top_authors_df.empty:
-            st.dataframe(top_authors_df, use_container_width=True)
+            # Add ranking
+            top_authors_display = top_authors_df.copy()
+            top_authors_display.insert(0, 'Rank', range(1, len(top_authors_display) + 1))
+            st.dataframe(top_authors_display, use_container_width=True, height=400)
+            st.caption(f"📊 Top {len(top_authors_df)} authors by catalog presence")
             
             # Visualization
-            import matplotlib.pyplot as plt
-            fig, ax = plt.subplots(figsize=(10, 8))
-            ax.barh(top_authors_df['authors'][:10], top_authors_df['book_count'][:10])
-            ax.set_xlabel('Number of Published Books')
-            ax.set_ylabel('Author Name')
-            ax.set_title('Top 10 Most Prolific Authors')
-            ax.invert_yaxis()
-            plt.tight_layout()
-            st.pyplot(fig)
-            st.caption("Ranked by total number of books in catalog")
+            if show_chart:
+                import matplotlib.pyplot as plt
+                fig, ax = plt.subplots(figsize=(10, 6))
+                display_count = min(15, len(top_authors_df))
+                ax.barh(top_authors_df['authors'][:display_count], top_authors_df['book_count'][:display_count])
+                ax.set_xlabel('Number of Published Books')
+                ax.set_ylabel('Author Name')
+                ax.set_title(f'Top {display_count} Most Prolific Authors')
+                ax.invert_yaxis()
+                plt.tight_layout()
+                st.pyplot(fig)
         else:
             st.info("No author data available in the database.")
 
@@ -531,18 +655,30 @@ def sql_page():
         
         st.markdown("---")
         
-        # Book search
-        st.subheader("🔍 Advanced Book Search")
-        search_keyword = st.text_input("Search by Title or Author Name", "Harry Potter", key="sql_search", placeholder="Enter keywords...")
+        # Book search - more business relevant
+        st.subheader("🔍 Advanced Book Search & Filtering")
+        
+        col_s1, col_s2 = st.columns([3, 1])
+        with col_s1:
+            search_keyword = st.text_input("Search by Title or Author Name", "", key="sql_search", placeholder="Enter keywords (leave empty for all)...")
+        with col_s2:
+            search_limit = st.selectbox("Max Results", [50, 100, 200, 500], index=1, key="search_limit")
+        
         min_rating_filter = st.slider("Minimum Rating Threshold", 0.0, 5.0, 3.0, 0.1, key="sql_min_rating")
         
         if st.button("🔍 Execute Search", key="sql_search_btn", use_container_width=True):
-            search_results = sql.search_books(keyword=search_keyword, min_rating=min_rating_filter)
+            search_results = sql.search_books(keyword=search_keyword if search_keyword else "", min_rating=min_rating_filter)
+            
+            # Limit results to selected amount
             if not search_results.empty:
-                st.dataframe(search_results, use_container_width=True)
-                st.caption(f"Found {len(search_results)} books matching your criteria")
+                search_results = search_results.head(search_limit)
+                search_display = search_results.copy()
+                search_display.insert(0, 'Rank', range(1, len(search_display) + 1))
+                
+                st.dataframe(search_display, use_container_width=True, height=500)
+                st.caption(f"📊 Found {len(search_results)} books | Rating ≥ {min_rating_filter} | Business Insight: Use for inventory decisions")
             else:
-                st.info("No books match the specified search criteria.")
+                st.info("No books match the specified search criteria. Try adjusting the rating threshold.")
 
 
 # ------------------------------

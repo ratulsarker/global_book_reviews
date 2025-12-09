@@ -5,5 +5,3 @@ pyvis
 sqlalchemy
 matplotlib
 pymysql
-cryptography
-python-dotenv

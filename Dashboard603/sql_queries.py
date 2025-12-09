@@ -125,7 +125,7 @@ def get_publication_trends():
     engine = get_engine()
     query = """
     SELECT 
-        CAST(original_publication_year AS INTEGER) as year,
+        CAST(original_publication_year AS SIGNED) as year,
         COUNT(*) as book_count,
         ROUND(AVG(average_rating), 2) as avg_rating
     FROM books
