@@ -93,7 +93,7 @@ def get_recommendation_graph_data(tx, title, num_books=10, min_rating=3.5):
     Returns a richer network showing book communities.
     """
     query = """
-    // Get the main book and its tags
+    // Get the main book's tags
     MATCH (mainBook:Book {title:$title})-[:TAGGED_AS]->(mainTag:Tag)
     WHERE mainTag.name IS NOT NULL 
       AND NOT mainTag.name =~ '^[0-9-]+$'
@@ -109,27 +109,20 @@ def get_recommendation_graph_data(tx, title, num_books=10, min_rating=3.5):
     ORDER BY shared_tags DESC, rating DESC
     LIMIT $num_books
     
-    // Collect the top books and keep mainTags
+    // Now get all connections between selected books and their shared tags
     WITH mainBook, mainTags, COLLECT(recBook) AS topBooks
-    
-    // Get tag counts for all books first
-    UNWIND [mainBook] + topBooks AS book
-    OPTIONAL MATCH (book)-[:TAGGED_AS]->(allTags:Tag)
-    WITH mainBook, mainTags, book, COUNT(allTags) AS tag_count, book.average_rating AS rating
-    
-    // Now get the shared tags for visualization
+    UNWIND topBooks AS book
     MATCH (book)-[:TAGGED_AS]->(t:Tag)
     WHERE t IN mainTags
+      OR (mainBook)-[:TAGGED_AS]->(t)
     WITH mainBook, book, t, 
          CASE WHEN book = mainBook THEN 1 ELSE 0 END AS is_main,
-         rating,
-         tag_count
+         book.average_rating AS rating
     RETURN mainBook.title AS main_book,
            book.title AS book_title,
            t.name AS tag,
            is_main,
-           rating,
-           tag_count
+           rating
     ORDER BY is_main DESC, rating DESC
     """
     return list(tx.run(query, title=title, num_books=num_books, min_rating=min_rating))
