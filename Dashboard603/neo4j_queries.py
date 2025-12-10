@@ -19,15 +19,23 @@ driver = GraphDatabase.driver(
 # 1. Basic tag + book queries for main dashboard
 # ---------------------------------------------------------
 def get_all_tags(tx):
-    """Get all meaningful tags (filters out junk tags like numbers and symbols)."""
+    """Get all meaningful tags (filters out junk tags like numbers, ratings, years)."""
     query = """
-    MATCH (t:Tag)
+    MATCH (t:Tag)<-[:TAGGED_AS]-(b:Book)
     WHERE t.name IS NOT NULL 
       AND t.name <> ''
-      AND NOT t.name =~ '^[0-9-]+$'
-      AND NOT t.name IN ['-', '--', '---', '1', '2', '3']
-      AND size(t.name) > 1
-    RETURN t.name AS tag
+      AND NOT t.name =~ '^[0-9].*'
+      AND NOT t.name =~ '.*[0-9]{4}.*'
+      AND NOT t.name =~ '.*-star.*'
+      AND NOT t.name =~ '.*star$'
+      AND NOT t.name IN ['-', '--', '---', '1', '2', '3', 'mine', 'own', 'owned', 'have', 'default']
+      AND NOT t.name STARTS WITH 'read-'
+      AND NOT t.name STARTS WITH 'to-'
+      AND NOT t.name STARTS WITH 'my-'
+      AND size(t.name) > 2
+    WITH t.name AS tag, COUNT(b) AS book_count
+    WHERE book_count >= 10
+    RETURN tag
     ORDER BY tag
     """
     return list(tx.run(query))
@@ -93,7 +101,7 @@ def get_recommendation_graph_data(tx, title, num_books=10, min_rating=3.5):
     Returns a richer network showing book communities.
     """
     query = """
-    // Get the main book's tags
+    // Get the main book and its tags
     MATCH (mainBook:Book {title:$title})-[:TAGGED_AS]->(mainTag:Tag)
     WHERE mainTag.name IS NOT NULL 
       AND NOT mainTag.name =~ '^[0-9-]+$'
@@ -109,12 +117,14 @@ def get_recommendation_graph_data(tx, title, num_books=10, min_rating=3.5):
     ORDER BY shared_tags DESC, rating DESC
     LIMIT $num_books
     
-    // Now get all connections between selected books and their shared tags
+    // Collect recommended books and ADD main book to the list
     WITH mainBook, mainTags, COLLECT(recBook) AS topBooks
-    UNWIND topBooks AS book
+    WITH mainBook, mainTags, topBooks + [mainBook] AS allBooks
+    
+    // Get all tag connections for all books (including main book)
+    UNWIND allBooks AS book
     MATCH (book)-[:TAGGED_AS]->(t:Tag)
     WHERE t IN mainTags
-      OR (mainBook)-[:TAGGED_AS]->(t)
     WITH mainBook, book, t, 
          CASE WHEN book = mainBook THEN 1 ELSE 0 END AS is_main,
          book.average_rating AS rating
@@ -161,8 +171,10 @@ def get_shortest_path(tx, title1, title2):
 def get_top_authors(tx, limit):
     query = """
     MATCH (a:Author)-[:WRITTEN_BY]-(b:Book)
-    RETURN a.name AS author,
-           COUNT(b) AS books_written
+    WITH a.name AS author, 
+         COUNT(b) AS books_written,
+         ROUND(AVG(b.average_rating), 2) AS avg_rating
+    RETURN author, books_written, avg_rating
     ORDER BY books_written DESC, author ASC
     LIMIT $limit
     """
@@ -197,6 +209,21 @@ def get_top_tags(tx, limit):
     LIMIT $limit
     """
     return list(tx.run(query, limit=limit))
+
+
+def get_book_with_most_tags(tx):
+    """Get the book(s) with the highest number of tags."""
+    query = """
+    MATCH (b:Book)-[:TAGGED_AS]->(t:Tag)
+    WITH b, COUNT(t) AS tag_count
+    ORDER BY tag_count DESC
+    LIMIT 5
+    RETURN b.title AS title,
+           b.authors AS author,
+           b.average_rating AS rating,
+           tag_count
+    """
+    return list(tx.run(query))
 
 
 # ---------------------------------------------------------

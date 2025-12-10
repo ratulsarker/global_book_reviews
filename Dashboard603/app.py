@@ -14,6 +14,7 @@ from neo4j_queries import (
     get_top_tags,
     get_related_books_by_tags,
     get_related_books_by_author,
+    get_book_with_most_tags,
 )
 import sql_queries as sql
 from graph_utils import build_recommendation_graph
@@ -22,45 +23,127 @@ import streamlit.components.v1 as components
 # Page config with custom theme
 st.set_page_config(
     layout="wide",
-    page_title="Goodbooks Dashboard",
-    page_icon="📚",
+    page_title="Global Book Reviews Dashboard",
+    page_icon="",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for clean, professional styling
+# Custom CSS - Orange/Brown professional theme matching poster
 st.markdown("""
 <style>
-    /* Clean header styling */
-    h1 {
-        font-family: 'Segoe UI', Tahoma, sans-serif;
-        font-weight: 600;
+    /* Main background */
+    .stApp {
+        background-color: #FFF8F0;
     }
     
-    /* Button styling */
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background-color: #D4A84B;
+    }
+    
+    [data-testid="stSidebar"] .stMarkdown {
+        color: #333333;
+    }
+    
+    /* Header styling - centered */
+    h1 {
+        font-family: 'Georgia', serif;
+        font-weight: 700;
+        color: #8B4513;
+        text-align: center;
+        padding: 1rem 0;
+    }
+    
+    h2 {
+        font-family: 'Georgia', serif;
+        font-weight: 600;
+        color: #A0522D;
+        text-align: center;
+        border-bottom: 2px solid #D4A84B;
+        padding-bottom: 0.5rem;
+    }
+    
+    h3 {
+        font-family: 'Segoe UI', Tahoma, sans-serif;
+        font-weight: 600;
+        color: #654321;
+        text-align: center;
+    }
+    
+    /* Button styling - orange theme */
     .stButton>button {
-        background-color: #0068c9;
-        color: white;
+        background-color: #D4A84B;
+        color: #333333;
         border-radius: 5px;
         padding: 0.5rem 1.5rem;
-        font-weight: 500;
-        border: none;
+        font-weight: 600;
+        border: 2px solid #8B4513;
         transition: all 0.2s ease;
     }
     
     .stButton>button:hover {
-        background-color: #0056a8;
-        border: none;
+        background-color: #C49A3B;
+        border: 2px solid #654321;
+        color: #000000;
+    }
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #FFF8F0;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background-color: #E8D4A8;
+        border-radius: 5px 5px 0 0;
+        color: #654321;
+        font-weight: 500;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background-color: #D4A84B;
+        color: #333333;
     }
     
     /* Dataframe styling */
     .stDataFrame {
         border-radius: 5px;
+        border: 1px solid #D4A84B;
     }
     
-    /* Metric cards - keep default Streamlit colors */
+    /* Metric cards */
     [data-testid="stMetricValue"] {
         font-size: 1.8rem;
         font-weight: 600;
+        color: #8B4513;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        color: #654321;
+    }
+    
+    /* Info boxes */
+    .stAlert {
+        background-color: #FFF8DC;
+        border: 1px solid #D4A84B;
+        color: #654321;
+    }
+    
+    /* Select boxes and sliders */
+    .stSelectbox label, .stSlider label {
+        color: #654321;
+        font-weight: 500;
+    }
+    
+    /* Success messages */
+    .stSuccess {
+        background-color: #E8F5E9;
+        border: 1px solid #4CAF50;
+    }
+    
+    /* Dividers */
+    hr {
+        border-color: #D4A84B;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -78,10 +161,10 @@ def run_neo4j_read(fn, *args, **kwargs):
 # Streamlit App
 # ------------------------------
 def main():
-    st.title("📚 Goodbooks Analytics Platform")
-    st.markdown("*Hybrid Database Architecture: Neo4j Graph Database & MySQL Relational Database*")
+    st.title("Global Book Reviews")
+    st.markdown("<p style='text-align: center; color: #654321; font-size: 1.1rem;'>Multi-Database Analytics for Personalized Book Discovery</p>", unsafe_allow_html=True)
 
-    st.sidebar.header("📊 Navigation")
+    st.sidebar.header("Navigation")
     page = st.sidebar.radio("Select Analysis Type", ["Graph Database Insights", "SQL Database Analytics"])
 
     if page == "Graph Database Insights":
@@ -94,16 +177,42 @@ def main():
 # NEO4J PAGE
 # ------------------------------
 def neo4j_page():
-    st.header("🕸️ Graph Database Analysis")
+    st.header("Graph Database Analysis")
+    
+    # Key Insight: Book with Most Tags
+    try:
+        most_tagged_books = run_neo4j_read(get_book_with_most_tags)
+        if most_tagged_books:
+            top_book = most_tagged_books[0]
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #D4A84B 0%, #8B4513 100%); 
+                        padding: 1rem 1.5rem; border-radius: 10px; margin-bottom: 1.5rem;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <h4 style="color: white; margin: 0 0 0.5rem 0; font-size: 1rem;">📊 Key Insight: Most Tagged Book</h4>
+                <p style="color: #FFF8F0; margin: 0; font-size: 1.1rem; font-weight: 600;">
+                    "{}" has <span style="color: #FFD700; font-size: 1.3rem;">{}</span> tags
+                </p>
+                <p style="color: #E8D4A8; margin: 0.3rem 0 0 0; font-size: 0.85rem;">
+                    by {} • Rating: ⭐ {:.2f}
+                </p>
+            </div>
+            """.format(
+                top_book["title"][:60] + "..." if len(top_book["title"]) > 60 else top_book["title"],
+                top_book["tag_count"],
+                top_book["author"] or "Unknown",
+                top_book["rating"] or 0
+            ), unsafe_allow_html=True)
+    except Exception as e:
+        st.warning(f"Could not load tag insight: {e}")
 
     # Two subtabs: existing explorer + graph algorithms
-    tab1, tab2 = st.tabs(["📚 Book Discovery & Recommendations", "🔬 Advanced Graph Algorithms"])
+    tab1, tab2 = st.tabs(["Book Discovery & Recommendations", "Advanced Graph Algorithms"])
 
     # ============================================================
     # TAB 1 – YOUR EXISTING FEATURES
     # ============================================================
     with tab1:
-        st.subheader("📖 Browse High-Rated Books by Genre/Tag")
+        st.subheader("Browse High-Rated Books by Genre/Tag")
 
         # Load tags
         tags = run_neo4j_read(get_all_tags)
@@ -130,7 +239,7 @@ def neo4j_page():
         # ============================================================
         # 2. BOOK SEARCH + SELECTION + TAG-BASED RECOMMENDATIONS
         # ============================================================
-        st.subheader("🎯 Personalized Book Recommendations")
+        st.subheader("Personalized Book Recommendations")
 
         # Prepare session state variables
         if "search_results" not in st.session_state:
@@ -142,7 +251,7 @@ def neo4j_page():
         # Search bar
         keyword = st.text_input("Search for a Book by Title", "hunger games", placeholder="Enter book title or keyword...")
 
-        if st.button("🔍 Search Books", use_container_width=True):
+        if st.button("Search Books", use_container_width=True):
             st.session_state.search_results = run_neo4j_read(
                 search_books_by_keyword, keyword
             )
@@ -163,7 +272,7 @@ def neo4j_page():
             # Save selected title
             st.session_state.selected_title = selected
 
-            st.success(f"✓ **Selected Book:** {st.session_state.selected_title}")
+            st.success(f"Selected Book: {st.session_state.selected_title}")
 
             # Tag-based recommendations
             recs = run_neo4j_read(
@@ -171,7 +280,7 @@ def neo4j_page():
             )
 
             if recs:
-                st.subheader("📚 Recommended Books Based on Shared Tags")
+                st.subheader("Recommended Books Based on Shared Tags")
                 st.dataframe(pd.DataFrame(recs), use_container_width=True)
             else:
                 st.info("No recommendations available for this book.")
@@ -179,10 +288,10 @@ def neo4j_page():
             # ============================================================
             # 3. RECOMMENDATION GRAPH VISUALIZATION
             # ============================================================
-            st.subheader("🕸️ Book Community Network Visualization")
+            st.subheader("Book Recommendation Network")
 
             # Graph controls
-            st.markdown("**📊 Customize Your Network:**")
+            st.markdown("**Customize Your Network:**")
             graph_col1, graph_col2 = st.columns([2, 1])
             
             with graph_col1:
@@ -207,7 +316,52 @@ def neo4j_page():
                     help="Only show highly-rated similar books"
                 )
             
-            if st.button("🔄 Generate Network Graph", key="generate_graph_btn", use_container_width=True):
+            # Physics tuning controls
+            with st.expander("⚙️ Physics Settings (Tune the graph movement)", expanded=False):
+                st.caption("Adjust these sliders to control how the graph moves and settles")
+                
+                phys_col1, phys_col2 = st.columns(2)
+                with phys_col1:
+                    physics_repulsion = st.slider(
+                        "Node Repulsion",
+                        min_value=500,
+                        max_value=10000,
+                        value=3000,
+                        step=500,
+                        key="physics_repulsion",
+                        help="Higher = nodes push apart more (prevents overlap)"
+                    )
+                    physics_spring = st.slider(
+                        "Node Spacing",
+                        min_value=100,
+                        max_value=500,
+                        value=200,
+                        step=25,
+                        key="physics_spring",
+                        help="Higher = more space between nodes"
+                    )
+                
+                with phys_col2:
+                    physics_damping = st.slider(
+                        "Damping (Friction)",
+                        min_value=0.1,
+                        max_value=1.0,
+                        value=0.9,
+                        step=0.1,
+                        key="physics_damping",
+                        help="Higher = stops faster, less jittery"
+                    )
+                    physics_central = st.slider(
+                        "Center Pull",
+                        min_value=0.0,
+                        max_value=0.5,
+                        value=0.1,
+                        step=0.05,
+                        key="physics_central",
+                        help="Higher = keeps graph more centered"
+                    )
+            
+            if st.button("Generate Network Graph", key="generate_graph_btn", use_container_width=True):
                 graph_data = run_neo4j_read(
                     get_recommendation_graph_data, 
                     st.session_state.selected_title,
@@ -220,99 +374,186 @@ def neo4j_page():
                     unique_books = len(set(r["book_title"] for r in graph_data))
                     unique_tags = len(set(r["tag"] for r in graph_data))
                     
-                    st.success(f"✓ Network generated: {unique_books} books connected through {unique_tags} shared tags")
-                    st.info("**Graph Legend:** 🔵 Blue Box = Your Selected Book | 🟣 Purple Dots = Shared Genres/Tags | 🟢 Green Ellipses = Similar Books\n\n**💡 Tips:** Hover over nodes for details | Larger nodes = more connections | Drag to rearrange | Scroll to zoom")
+                    st.success(f"Network generated: {unique_books} books connected through {unique_tags} shared tags")
+                    st.markdown("""
+                    <div style="background-color: #f0f2f6; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                        <span style="background-color: #2563eb; color: white; padding: 2px 8px; border-radius: 3px; margin-right: 15px;">Blue Box</span> = Your Selected Book
+                        <span style="margin: 0 10px;">|</span>
+                        <span style="background-color: #D4A84B; color: #333; padding: 2px 8px; border-radius: 50%; margin-right: 5px;">●</span> Orange = Tags
+                        <span style="margin: 0 10px;">|</span>
+                        <span style="background-color: #10b981; color: white; padding: 2px 8px; border-radius: 10px; margin-right: 5px;">○</span> Green = Similar Books
+                    </div>
+                    """, unsafe_allow_html=True)
                     
-                    net = build_recommendation_graph(graph_data)
+                    # Pass physics settings from sliders
+                    physics_settings = {
+                        'repulsion': physics_repulsion,
+                        'spring': physics_spring,
+                        'damping': physics_damping,
+                        'central': physics_central
+                    }
+                    net = build_recommendation_graph(graph_data, physics_settings)
                     if net:
                         net.save_graph("recommendations_graph.html")
 
                         with open("recommendations_graph.html", "r", encoding="utf-8") as f:
                             html_content = f.read()
                         
-                        # Inject JavaScript to disable physics quickly - minimal movement
-                        stabilization_script = """
+                        # Control buttons CSS
+                        control_buttons_css = """
+                        <style>
+                            .graph-controls {
+                                display: flex;
+                                gap: 10px;
+                                padding: 10px;
+                                background: #1a202c;
+                                border-radius: 8px 8px 0 0;
+                                justify-content: center;
+                            }
+                            .graph-btn {
+                                padding: 10px 20px;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-weight: 600;
+                                font-size: 14px;
+                                transition: all 0.2s ease;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            }
+                            .graph-btn:hover {
+                                transform: translateY(-2px);
+                                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                            }
+                            .btn-start {
+                                background: linear-gradient(135deg, #10b981, #059669);
+                                color: white;
+                            }
+                            .btn-stop {
+                                background: linear-gradient(135deg, #ef4444, #dc2626);
+                                color: white;
+                            }
+                            .btn-fullscreen {
+                                background: linear-gradient(135deg, #3b82f6, #2563eb);
+                                color: white;
+                            }
+                            .graph-wrapper {
+                                position: relative;
+                            }
+                            #mynetwork:fullscreen, #mynetwork:-webkit-full-screen {
+                                background-color: #2d3748;
+                                width: 100vw !important;
+                                height: 100vh !important;
+                            }
+                        </style>
+                        """
+                        
+                        # Control buttons HTML - placed BEFORE the network div
+                        control_buttons_html = """
+                        <div class="graph-controls">
+                            <button class="graph-btn btn-start" onclick="startPhysics()" title="Resume graph animation">
+                                ▶ Start
+                            </button>
+                            <button class="graph-btn btn-stop" onclick="stopPhysics()" title="Freeze graph position">
+                                ⏹ Stop
+                            </button>
+                            <button class="graph-btn btn-fullscreen" onclick="toggleFullscreen()" title="Toggle fullscreen mode">
+                                ⛶ Fullscreen
+                            </button>
+                        </div>
+                        """
+                        
+                        # JavaScript control functions - using slider values
+                        control_functions_js = f"""
                         <script>
-                        (function() {
-                            function disablePhysicsQuickly() {
-                                try {
-                                    // Find all script tags and look for network variable
-                                    var scripts = document.querySelectorAll('script');
-                                    for (var s of scripts) {
-                                        var content = s.innerHTML || s.textContent || '';
-                                        if (content.includes('new vis.Network')) {
-                                            // Extract network variable name
-                                            var match = content.match(/var\\s+(\\w+)\\s*=\\s*new\\s+vis\\.Network/);
-                                            if (match) {
-                                                var netVar = match[1];
-                                                // Wait for network to be created
-                                                var checkInterval = setInterval(function() {
-                                                    try {
-                                                        var network = eval(netVar);
-                                                        if (network && typeof network.on === 'function') {
-                                                            clearInterval(checkInterval);
-                                                            // Disable physics immediately after stabilization starts
-                                                            network.on("stabilizationStart", function() {
-                                                                // Disable after just 1 second of stabilization
-                                                                setTimeout(function() {
-                                                                    try {
-                                                                        network.setOptions({ physics: false });
-                                                                    } catch(e) {}
-                                                                }, 1000);
-                                                            });
-                                                            // Disable physics after stabilization completes
-                                                            network.on("stabilizationEnd", function() {
-                                                                network.setOptions({ physics: false });
-                                                            });
-                                                            // Backup: disable after 2 seconds regardless
-                                                            setTimeout(function() {
-                                                                try {
-                                                                    network.setOptions({ physics: false });
-                                                                } catch(e) {}
-                                                            }, 2000);
-                                                        }
-                                                    } catch(e) {
-                                                        // Variable not ready yet
-                                                    }
-                                                }, 50);
-                                                setTimeout(function() { clearInterval(checkInterval); }, 3000);
-                                                break;
-                                            }
-                                        }
-                                    }
-                                } catch(e) {
-                                    console.log('Physics disable script error:', e);
-                                }
-                            }
-                            if (document.readyState === 'loading') {
-                                document.addEventListener('DOMContentLoaded', disablePhysicsQuickly);
-                            } else {
-                                setTimeout(disablePhysicsQuickly, 200);
-                            }
-                        })();
+                        function startPhysics() {{
+                            if (typeof network !== 'undefined') {{
+                                network.setOptions({{ 
+                                    physics: {{ 
+                                        enabled: true,
+                                        solver: 'repulsion',
+                                        repulsion: {{
+                                            nodeDistance: {physics_spring + 100},
+                                            centralGravity: {physics_central},
+                                            springLength: {physics_spring},
+                                            springConstant: 0.05,
+                                            damping: {physics_damping}
+                                        }},
+                                        maxVelocity: 20,
+                                        minVelocity: 0.5
+                                    }} 
+                                }});
+                            }}
+                        }}
+                        
+                        function stopPhysics() {{
+                            if (typeof network !== 'undefined') {{
+                                network.setOptions({{ physics: {{ enabled: false }} }});
+                            }}
+                        }}
+                        
+                        function toggleFullscreen() {{
+                            var elem = document.getElementById('mynetwork');
+                            if (!document.fullscreenElement && !document.webkitFullscreenElement) {{
+                                if (elem.requestFullscreen) {{
+                                    elem.requestFullscreen();
+                                }} else if (elem.webkitRequestFullscreen) {{
+                                    elem.webkitRequestFullscreen();
+                                }}
+                            }} else {{
+                                if (document.exitFullscreen) {{
+                                    document.exitFullscreen();
+                                }} else if (document.webkitExitFullscreen) {{
+                                    document.webkitExitFullscreen();
+                                }}
+                            }}
+                        }}
                         </script>
                         """
-                        # Insert script before closing body tag
-                        html_content = html_content.replace('</body>', stabilization_script + '</body>')
-
-                        components.html(html_content, height=770, scrolling=False)
+                        
+                        # Inject CSS into head
+                        html_content = html_content.replace(
+                            "</head>",
+                            control_buttons_css + control_functions_js + "\n</head>"
+                        )
+                        
+                        # Inject control buttons BEFORE the card div
+                        html_content = html_content.replace(
+                            '<div class="card" style="width: 100%">',
+                            '<div class="graph-wrapper">' + control_buttons_html + '<div class="card" style="width: 100%">'
+                        )
+                        
+                        # Close the wrapper div at the end
+                        html_content = html_content.replace(
+                            '</body>',
+                            '</div></body>'
+                        )
+                        
+                        # Modify the existing stabilizationIterationsDone handler to also disable physics
+                        html_content = html_content.replace(
+                            "setTimeout(function () {document.getElementById('loadingBar').style.display = 'none';}, 500);",
+                            "setTimeout(function () {document.getElementById('loadingBar').style.display = 'none';}, 500);\n                          network.setOptions({ physics: { enabled: false } });"
+                        )
+                        
+                        components.html(html_content, height=820, scrolling=False)
                     else:
                         st.warning("Graph generation failed - insufficient data")
                 else:
                     st.info("Insufficient data to generate network visualization. Try lowering the minimum rating.")
         else:
-            st.info("💡 **Get Started:** Search for a book above to view personalized recommendations and network visualization.")
+            st.info("Search for a book above to view personalized recommendations and network visualization.")
 
     # ============================================================
     # TAB 2 – GRAPH ALGORITHMS (NEW)
     # ============================================================
     with tab2:
-        st.subheader("🔬 Advanced Graph Analytics")
+        st.subheader("Advanced Graph Analytics")
 
         # ----------------------------
         # 1. SHORTEST PATH
         # ----------------------------
-        st.markdown("### 🛤️ Shortest Path Analysis")
+        st.markdown("### Shortest Path Analysis")
 
         # Load book titles for dropdown
         if 'book_titles' not in st.session_state:
@@ -344,7 +585,7 @@ def neo4j_page():
                 key="sp_book2",
             )
 
-        if st.button("🔍 Find Connection Path", use_container_width=True):
+        if st.button("Find Connection Path", use_container_width=True):
             try:
                 with driver.session() as session:
                     path_records = session.execute_read(
@@ -357,8 +598,8 @@ def neo4j_page():
                     hops = record.get("hops", None)
 
                     if nodes:
-                        st.success("✓ Connection path discovered!")
-                        st.write("### 🗺️ Connection Path:")
+                        st.success("Connection path discovered!")
+                        st.write("### Connection Path:")
                         st.write(" → ".join(nodes))
                         if hops is not None:
                             st.metric("Degrees of Separation", hops)
@@ -374,7 +615,7 @@ def neo4j_page():
         # ----------------------------
         # 2. CENTRALITY
         # ----------------------------
-        st.markdown("### 👥 Author Influence Analysis")
+        st.markdown("### Author Influence Analysis")
 
         # Genre/Tag filter for authors
         col_a, col_b = st.columns([2, 1])
@@ -397,7 +638,7 @@ def neo4j_page():
                 key="author_sort"
             )
 
-        if st.button("📊 Analyze Authors", key="show_centrality_btn", use_container_width=True):
+        if st.button("Analyze Authors", key="show_centrality_btn", use_container_width=True):
             try:
                 with driver.session() as session:
                     if selected_genre == "All Genres":
@@ -415,7 +656,7 @@ def neo4j_page():
                             authors_df = authors_df.sort_values('avg_rating', ascending=False)
                         
                         genre_text = f" in {selected_genre}" if selected_genre != "All Genres" else ""
-                        st.write(f"### 📊 Top Authors{genre_text}")
+                        st.write(f"### Top Authors{genre_text}")
                         st.dataframe(authors_df, use_container_width=True, height=400)
                         
                         # Show count
@@ -429,13 +670,13 @@ def neo4j_page():
         st.markdown("---")
         
         # Show top tags separately
-        if st.button("🏷️ View Top Tags & Genres", key="show_tags_btn", use_container_width=True):
+        if st.button("View Top Tags & Genres", key="show_tags_btn", use_container_width=True):
             try:
                 with driver.session() as session:
                     top_tags_records = session.execute_read(get_top_tags, limit=50)
                     tags_df = pd.DataFrame([dict(r) for r in top_tags_records])
                 
-                st.write("### 🏷️ Most Popular Tags/Genres")
+                st.write("### Most Popular Tags/Genres")
                 st.dataframe(tags_df, use_container_width=True, height=400)
                 st.caption(f"Displaying top {len(tags_df)} tags by book count")
             except Exception as e:
@@ -459,7 +700,7 @@ def neo4j_page():
 
         col3, col4 = st.columns(2)
         with col3:
-            if st.button("🏷️ Find by Similar Tags", use_container_width=True):
+            if st.button("Find by Similar Tags", use_container_width=True):
                 try:
                     with driver.session() as session:
                         related_tag_records = session.execute_read(
@@ -468,13 +709,13 @@ def neo4j_page():
                     related_tag_df = pd.DataFrame(
                         [dict(r) for r in related_tag_records]
                     )
-                    st.write("### 📚 Books with Similar Tags")
+                    st.write("### Books with Similar Tags")
                     st.dataframe(related_tag_df, use_container_width=True)
                 except Exception as e:
                     st.error(f"Query error: {e}")
 
         with col4:
-            if st.button("✍️ Find by Same Author", use_container_width=True):
+            if st.button("Find by Same Author", use_container_width=True):
                 try:
                     with driver.session() as session:
                         related_author_records = session.execute_read(
@@ -483,7 +724,7 @@ def neo4j_page():
                     related_author_df = pd.DataFrame(
                         [dict(r) for r in related_author_records]
                     )
-                    st.write("### 📖 Other Works by This Author")
+                    st.write("### Other Works by This Author")
                     st.dataframe(related_author_df, use_container_width=True)
                 except Exception as e:
                     st.error(f"Query error: {e}")
@@ -493,16 +734,16 @@ def neo4j_page():
 # SQL PAGE
 # ------------------------------
 def sql_page():
-    st.header("📊 Relational Database Analytics")
+    st.header("Relational Database Analytics")
 
     # Create tabs for different analytics
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Database Overview", "👥 Author Analytics", "📈 Publication Trends", "⭐ Rating Analysis"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Database Overview", "Author Analytics", "Publication Trends", "Rating Analysis"])
 
     # ============================================================
     # TAB 1 – OVERVIEW
     # ============================================================
     with tab1:
-        st.subheader("📈 Database Statistics")
+        st.subheader("Database Statistics")
         
         # Get basic stats
         try:
@@ -514,7 +755,7 @@ def sql_page():
                 user_count = conn.execute(text("SELECT COUNT(DISTINCT user_id) FROM ratings")).scalar()
                 rating_count = conn.execute(text("SELECT COUNT(*) FROM ratings")).scalar()
             
-            st.markdown("### 📊 Collection Metrics")
+            st.markdown("### Collection Metrics")
             col1, col2, col3 = st.columns(3)
             col1.metric("Books in Catalog", f"{book_count:,}")
             col2.metric("Active Users", f"{user_count:,}")
@@ -526,7 +767,7 @@ def sql_page():
         st.markdown("---")
         
         # Top Rated Books with better controls
-        st.subheader("⭐ Top-Rated Books Analysis")
+        st.subheader("Top-Rated Books Analysis")
         
         col_a, col_b = st.columns([3, 1])
         with col_a:
@@ -541,7 +782,7 @@ def sql_page():
             top_books_display.insert(0, 'Rank', range(1, len(top_books_display) + 1))
             
             st.dataframe(top_books_display, use_container_width=True, height=400)
-            st.caption(f"📊 Showing {len(top_books)} books with ≥{min_ratings:,} ratings | Sorted by average rating")
+            st.caption(f"Showing {len(top_books)} books with {min_ratings:,}+ ratings | Sorted by average rating")
         else:
             st.info(f"No books found with at least {min_ratings:,} ratings. Try lowering the threshold.")
         
@@ -555,13 +796,13 @@ def sql_page():
             most_rated_display = most_rated.copy()
             most_rated_display.insert(0, 'Rank', range(1, len(most_rated_display) + 1))
             st.dataframe(most_rated_display, use_container_width=True, height=400)
-            st.caption(f"📊 Top {len(most_rated)} books by review volume | Useful for identifying trending titles")
+            st.caption(f"Top {len(most_rated)} books by review volume | Useful for identifying trending titles")
 
     # ============================================================
     # TAB 2 – AUTHORS
     # ============================================================
     with tab2:
-        st.subheader("👥 Author Performance Metrics")
+        st.subheader("Author Performance Metrics")
         
         col1, col2 = st.columns([2, 1])
         with col1:
@@ -576,7 +817,7 @@ def sql_page():
             top_authors_display = top_authors_df.copy()
             top_authors_display.insert(0, 'Rank', range(1, len(top_authors_display) + 1))
             st.dataframe(top_authors_display, use_container_width=True, height=400)
-            st.caption(f"📊 Top {len(top_authors_df)} authors by catalog presence")
+            st.caption(f"Top {len(top_authors_df)} authors by catalog presence")
             
             # Visualization
             if show_chart:
@@ -602,7 +843,7 @@ def sql_page():
         trends = sql.get_publication_trends()
         
         if not trends.empty:
-            st.markdown("### 📈 Publications Over Time")
+            st.markdown("### Publications Over Time")
             st.line_chart(trends.set_index('year')['book_count'])
             st.caption("Number of books published per year (1900-2025)")
             
@@ -632,13 +873,13 @@ def sql_page():
     # TAB 4 – RATINGS
     # ============================================================
     with tab4:
-        st.subheader("⭐ User Rating Insights")
+        st.subheader("User Rating Insights")
         
         # Rating distribution
         rating_dist = sql.get_rating_distribution()
         
         if not rating_dist.empty:
-            st.markdown("### 📊 Rating Distribution Across Catalog")
+            st.markdown("### Rating Distribution Across Catalog")
             st.bar_chart(rating_dist.set_index('rating_bucket')['book_count'])
             st.caption("Distribution of average book ratings (0.0 - 5.0 scale)")
             
@@ -656,7 +897,7 @@ def sql_page():
         st.markdown("---")
         
         # Book search - more business relevant
-        st.subheader("🔍 Advanced Book Search & Filtering")
+        st.subheader("Advanced Book Search & Filtering")
         
         col_s1, col_s2 = st.columns([3, 1])
         with col_s1:
@@ -666,7 +907,7 @@ def sql_page():
         
         min_rating_filter = st.slider("Minimum Rating Threshold", 0.0, 5.0, 3.0, 0.1, key="sql_min_rating")
         
-        if st.button("🔍 Execute Search", key="sql_search_btn", use_container_width=True):
+        if st.button("Execute Search", key="sql_search_btn", use_container_width=True):
             search_results = sql.search_books(keyword=search_keyword if search_keyword else "", min_rating=min_rating_filter)
             
             # Limit results to selected amount
@@ -676,7 +917,7 @@ def sql_page():
                 search_display.insert(0, 'Rank', range(1, len(search_display) + 1))
                 
                 st.dataframe(search_display, use_container_width=True, height=500)
-                st.caption(f"📊 Found {len(search_results)} books | Rating ≥ {min_rating_filter} | Business Insight: Use for inventory decisions")
+                st.caption(f"Found {len(search_results)} books | Rating {min_rating_filter}+ | Business Insight: Use for inventory decisions")
             else:
                 st.info("No books match the specified search criteria. Try adjusting the rating threshold.")
 
