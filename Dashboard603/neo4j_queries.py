@@ -19,7 +19,13 @@ driver = GraphDatabase.driver(
 # 1. Basic tag + book queries for main dashboard
 # ---------------------------------------------------------
 def get_all_tags(tx):
-    """Get all meaningful tags (filters out junk tags like numbers, ratings, years)."""
+    """
+    Get all meaningful tags (filters out junk tags like numbers, ratings, years).
+    
+    Dashboard Locations:
+    - Graph Database Insights > Book Discovery & Recommendations tab > Browse High-Rated Books by Genre/Tag (tag selector dropdown)
+    - Graph Database Insights > Advanced Graph Algorithms tab > Author Influence Analysis (genre filter dropdown)
+    """
     query = """
     MATCH (t:Tag)<-[:TAGGED_AS]-(b:Book)
     WHERE t.name IS NOT NULL 
@@ -42,7 +48,14 @@ def get_all_tags(tx):
 
 
 def get_all_book_titles(tx, limit=1000):
-    """Get list of book titles for dropdowns, sorted by popularity."""
+    """
+    Get list of book titles for dropdowns, sorted by popularity.
+    
+    Dashboard Location: Graph Database Insights > Advanced Graph Algorithms tab
+    Used to populate book selection dropdowns in:
+    - Shortest Path Analysis (Starting Book and Destination Book selectors)
+    - Book Relationship Explorer (Select Book to Explore dropdown)
+    """
     query = """
     MATCH (b:Book)
     RETURN b.title AS title
@@ -53,6 +66,12 @@ def get_all_book_titles(tx, limit=1000):
 
 
 def get_books_by_tag(tx, tag, min_avg_rating):
+    """
+    Get books filtered by tag/genre with minimum rating threshold.
+    
+    Dashboard Location: Graph Database Insights > Book Discovery & Recommendations tab > Browse High-Rated Books by Genre/Tag
+    Displays a dataframe of books matching the selected tag and minimum rating filter.
+    """
     query = """
     MATCH (b:Book)-[:TAGGED_AS]->(t:Tag)
     WHERE toLower(t.name) = toLower($tag)
@@ -67,6 +86,12 @@ def get_books_by_tag(tx, tag, min_avg_rating):
 
 
 def search_books_by_keyword(tx, keyword, limit=30):
+    """
+    Search for books by title keyword.
+    
+    Dashboard Location: Graph Database Insights > Book Discovery & Recommendations tab > Personalized Book Recommendations
+    Used in the book search functionality to find books by title, which then populates the book selection dropdown.
+    """
     query = """
     MATCH (b:Book)
     WHERE toLower(b.title) CONTAINS toLower($keyword)
@@ -82,6 +107,9 @@ def get_recommendations_for_book(tx, title, limit=30):
     """
     Simple graph-based recommendation:
     Books that share tags with the selected book.
+    
+    Dashboard Location: Graph Database Insights > Book Discovery & Recommendations tab > Recommended Books Based on Shared Tags
+    Displays a dataframe showing similar books that share common tags with the selected book, sorted by number of shared tags.
     """
     query = """
     MATCH (b:Book {title:$title})-[:TAGGED_AS]->(t:Tag)<-[:TAGGED_AS]-(other:Book)
@@ -99,6 +127,13 @@ def get_recommendation_graph_data(tx, title, num_books=10, min_rating=3.5):
     """
     Data for visualization: Shows multiple books and how they interconnect through tags.
     Returns a richer network showing book communities.
+    
+    Dashboard Location: Graph Database Insights > Book Discovery & Recommendations tab > Book Recommendation Network
+    Generates the data for the interactive network graph visualization showing:
+    - Selected book (blue box) at center
+    - Similar recommended books (green ellipses) in a circle
+    - Shared tags (orange dots) connecting books
+    The graph can be customized with sliders for number of books, minimum rating, and physics settings.
     """
     query = """
     // Get the main book and its tags
@@ -125,7 +160,7 @@ def get_recommendation_graph_data(tx, title, num_books=10, min_rating=3.5):
     UNWIND allBooks AS book
     MATCH (book)-[:TAGGED_AS]->(t:Tag)
     WHERE t IN mainTags
-    WITH mainBook, book, t, 
+    WITH mainBook, book, t,
          CASE WHEN book = mainBook THEN 1 ELSE 0 END AS is_main,
          book.average_rating AS rating
     RETURN mainBook.title AS main_book,
@@ -146,6 +181,10 @@ def get_shortest_path(tx, title1, title2):
     Returns a single record with:
       path_nodes: [ "Book A", "Tag: dystopian", "Book B" ]
       hops:       number of relationships in the path
+    
+    Dashboard Location: Graph Database Insights > Advanced Graph Algorithms tab > Shortest Path Analysis
+    Finds the shortest connection path between two books through tags, authors, or other books.
+    Displays the path as a chain (e.g., "Book A → Tag: dystopian → Book B") and shows degrees of separation.
     """
     query = """
     MATCH (b1:Book {title:$title1}),
@@ -169,9 +208,15 @@ def get_shortest_path(tx, title1, title2):
 # 3. Centrality-style queries (simple degree centrality)
 # ---------------------------------------------------------
 def get_top_authors(tx, limit):
+    """
+    Get top authors by number of books written (degree centrality).
+    
+    Dashboard Location: Graph Database Insights > Advanced Graph Algorithms tab > Author Influence Analysis
+    When "All Genres" is selected, displays the most prolific authors sorted by number of books written.
+    """
     query = """
     MATCH (a:Author)-[:WRITTEN_BY]-(b:Book)
-    WITH a.name AS author, 
+    WITH a.name AS author,
          COUNT(b) AS books_written,
          ROUND(AVG(b.average_rating), 2) AS avg_rating
     RETURN author, books_written, avg_rating
@@ -182,11 +227,18 @@ def get_top_authors(tx, limit):
 
 
 def get_authors_by_tag(tx, tag_name, limit=50):
-    """Get authors who write books with a specific tag/genre."""
+    """
+    Get authors who write books with a specific tag/genre.
+    
+    Dashboard Location: Graph Database Insights > Advanced Graph Algorithms tab > Author Influence Analysis
+    When a specific genre/tag is selected in the filter, displays authors who write in that genre,
+    sorted by number of books written and average rating.
+    """
     query = """
     MATCH (a:Author)-[:WRITTEN_BY]-(b:Book)-[:TAGGED_AS]->(t:Tag)
     WHERE toLower(t.name) = toLower($tag)
-    WITH a.name AS author, COUNT(DISTINCT b) AS books_written, 
+    WITH a.name AS author,
+         COUNT(DISTINCT b) AS books_written,
          AVG(b.average_rating) AS avg_rating
     RETURN author, books_written, ROUND(avg_rating, 2) AS avg_rating
     ORDER BY books_written DESC, avg_rating DESC
@@ -196,7 +248,12 @@ def get_authors_by_tag(tx, tag_name, limit=50):
 
 
 def get_top_tags(tx, limit):
-    """Get top tags, filtering out meaningless ones."""
+    """
+    Get top tags, filtering out meaningless ones.
+    
+    Dashboard Location: Graph Database Insights > Advanced Graph Algorithms tab > View Top Tags & Genres
+    Displays the most popular tags/genres sorted by number of books associated with each tag.
+    """
     query = """
     MATCH (t:Tag)<-[:TAGGED_AS]-(b:Book)
     WHERE t.name IS NOT NULL 
@@ -212,7 +269,13 @@ def get_top_tags(tx, limit):
 
 
 def get_book_with_most_tags(tx):
-    """Get the book(s) with the highest number of tags."""
+    """
+    Get the book(s) with the highest number of tags.
+    
+    Dashboard Location: Graph Database Insights > Key Insight banner (at the top of the page)
+    Displays a prominent banner showing the book with the most tags, including its rating and author.
+    This appears at the top of the Graph Database Insights page as a key statistic.
+    """
     query = """
     MATCH (b:Book)-[:TAGGED_AS]->(t:Tag)
     WITH b, COUNT(t) AS tag_count
@@ -230,6 +293,12 @@ def get_book_with_most_tags(tx):
 # 4. Traversal – related books by tags and authors
 # ---------------------------------------------------------
 def get_related_books_by_tags(tx, title):
+    """
+    Find books related to the selected book through shared tags.
+    
+    Dashboard Location: Graph Database Insights > Advanced Graph Algorithms tab > Book Relationship Explorer > Find by Similar Tags
+    Displays books that share tags with the selected book, showing which specific tags they share.
+    """
     query = """
     MATCH (b:Book {title:$title})-[:TAGGED_AS]->(t:Tag)<-[:TAGGED_AS]-(other:Book)
     WHERE other <> b
@@ -242,6 +311,12 @@ def get_related_books_by_tags(tx, title):
 
 
 def get_related_books_by_author(tx, title):
+    """
+    Find other books written by the same author as the selected book.
+    
+    Dashboard Location: Graph Database Insights > Advanced Graph Algorithms tab > Book Relationship Explorer > Find by Same Author
+    Displays other works by the same author, sorted by average rating.
+    """
     query = """
     MATCH (b:Book {title:$title})
     WITH b, b.authors AS author

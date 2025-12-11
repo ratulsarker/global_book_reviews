@@ -326,7 +326,7 @@ def neo4j_page():
                         "Node Repulsion",
                         min_value=500,
                         max_value=10000,
-                        value=3000,
+                        value=5000,
                         step=500,
                         key="physics_repulsion",
                         help="Higher = nodes push apart more (prevents overlap)"
@@ -335,7 +335,7 @@ def neo4j_page():
                         "Node Spacing",
                         min_value=100,
                         max_value=500,
-                        value=200,
+                        value=300,
                         step=25,
                         key="physics_spring",
                         help="Higher = more space between nodes"
@@ -346,8 +346,8 @@ def neo4j_page():
                         "Damping (Friction)",
                         min_value=0.1,
                         max_value=1.0,
-                        value=0.9,
-                        step=0.1,
+                        value=0.95,
+                        step=0.05,
                         key="physics_damping",
                         help="Higher = stops faster, less jittery"
                     )
@@ -472,16 +472,18 @@ def neo4j_page():
                                 network.setOptions({{ 
                                     physics: {{ 
                                         enabled: true,
-                                        solver: 'repulsion',
-                                        repulsion: {{
-                                            nodeDistance: {physics_spring + 100},
+                                        solver: 'barnesHut',
+                                        barnesHut: {{
+                                            gravitationalConstant: -{physics_repulsion},
                                             centralGravity: {physics_central},
                                             springLength: {physics_spring},
-                                            springConstant: 0.05,
-                                            damping: {physics_damping}
+                                            springConstant: 0.005,
+                                            damping: {physics_damping},
+                                            avoidOverlap: 1
                                         }},
-                                        maxVelocity: 20,
-                                        minVelocity: 0.5
+                                        maxVelocity: 25,
+                                        minVelocity: 0.5,
+                                        timestep: 0.35
                                     }} 
                                 }});
                             }}
@@ -530,11 +532,8 @@ def neo4j_page():
                             '</div></body>'
                         )
                         
-                        # Modify the existing stabilizationIterationsDone handler to also disable physics
-                        html_content = html_content.replace(
-                            "setTimeout(function () {document.getElementById('loadingBar').style.display = 'none';}, 500);",
-                            "setTimeout(function () {document.getElementById('loadingBar').style.display = 'none';}, 500);\n                          network.setOptions({ physics: { enabled: false } });"
-                        )
+                        # Keep physics enabled after stabilization (don't disable it)
+                        # This allows the graph to continue moving and responding to interactions
                         
                         components.html(html_content, height=820, scrolling=False)
                     else:
@@ -750,10 +749,11 @@ def sql_page():
             from sqlalchemy import text
             engine = sql.get_engine()
             
-            with engine.connect() as conn:
-                book_count = conn.execute(text("SELECT COUNT(*) FROM books")).scalar()
-                user_count = conn.execute(text("SELECT COUNT(DISTINCT user_id) FROM ratings")).scalar()
-                rating_count = conn.execute(text("SELECT COUNT(*) FROM ratings")).scalar()
+            with st.spinner("🔄 Running SQL queries..."):
+                with engine.connect() as conn:
+                    book_count = conn.execute(text("SELECT COUNT(*) FROM books")).scalar()
+                    user_count = conn.execute(text("SELECT COUNT(DISTINCT user_id) FROM ratings")).scalar()
+                    rating_count = conn.execute(text("SELECT COUNT(*) FROM ratings")).scalar()
             
             st.markdown("### Collection Metrics")
             col1, col2, col3 = st.columns(3)
@@ -775,7 +775,8 @@ def sql_page():
         with col_b:
             num_books = st.selectbox("Show Top", [25, 50, 100, 200], index=1, key="num_top_books")
         
-        top_books = sql.get_top_rated_books(limit=num_books, min_ratings=min_ratings)
+        with st.spinner("🔄 Querying top-rated books..."):
+            top_books = sql.get_top_rated_books(limit=num_books, min_ratings=min_ratings)
         if not top_books.empty:
             # Add ranking column
             top_books_display = top_books.copy()
@@ -791,7 +792,8 @@ def sql_page():
         # Most Rated Books
         st.subheader("🔥 Most Reviewed Books")
         num_popular = st.selectbox("Number of Books to Display", [20, 50, 100], index=1, key="num_popular")
-        most_rated = sql.get_most_rated_books(limit=num_popular)
+        with st.spinner("🔄 Querying most reviewed books..."):
+            most_rated = sql.get_most_rated_books(limit=num_popular)
         if not most_rated.empty:
             most_rated_display = most_rated.copy()
             most_rated_display.insert(0, 'Rank', range(1, len(most_rated_display) + 1))
@@ -810,7 +812,8 @@ def sql_page():
         with col2:
             show_chart = st.checkbox("Show Visualization", value=True, key="show_author_chart")
         
-        top_authors_df = sql.get_top_authors(limit=limit)
+        with st.spinner("🔄 Querying author analytics..."):
+            top_authors_df = sql.get_top_authors(limit=limit)
         
         if not top_authors_df.empty:
             # Add ranking
@@ -840,7 +843,8 @@ def sql_page():
     with tab3:
         st.subheader("📅 Historical Publication Analysis")
         
-        trends = sql.get_publication_trends()
+        with st.spinner("🔄 Analyzing publication trends..."):
+            trends = sql.get_publication_trends()
         
         if not trends.empty:
             st.markdown("### Publications Over Time")
@@ -850,7 +854,8 @@ def sql_page():
             st.markdown("---")
             st.subheader("🌍 Language Distribution")
             
-            lang_data = sql.get_books_by_language()
+            with st.spinner("🔄 Querying language distribution..."):
+                lang_data = sql.get_books_by_language()
             if not lang_data.empty:
                 st.dataframe(lang_data.head(20), use_container_width=True)
                 
@@ -876,7 +881,8 @@ def sql_page():
         st.subheader("User Rating Insights")
         
         # Rating distribution
-        rating_dist = sql.get_rating_distribution()
+        with st.spinner("🔄 Analyzing rating distribution..."):
+            rating_dist = sql.get_rating_distribution()
         
         if not rating_dist.empty:
             st.markdown("### Rating Distribution Across Catalog")
@@ -887,7 +893,8 @@ def sql_page():
             
             # User rating stats
             st.subheader("🏆 Top Contributors")
-            user_stats = sql.get_user_rating_stats(limit=20)
+            with st.spinner("🔄 Querying user statistics..."):
+                user_stats = sql.get_user_rating_stats(limit=20)
             if not user_stats.empty:
                 st.dataframe(user_stats, use_container_width=True)
                 st.caption("Most active users by number of ratings submitted")
@@ -908,7 +915,8 @@ def sql_page():
         min_rating_filter = st.slider("Minimum Rating Threshold", 0.0, 5.0, 3.0, 0.1, key="sql_min_rating")
         
         if st.button("Execute Search", key="sql_search_btn", use_container_width=True):
-            search_results = sql.search_books(keyword=search_keyword if search_keyword else "", min_rating=min_rating_filter)
+            with st.spinner("🔄 Searching database..."):
+                search_results = sql.search_books(keyword=search_keyword if search_keyword else "", min_rating=min_rating_filter)
             
             # Limit results to selected amount
             if not search_results.empty:

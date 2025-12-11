@@ -13,7 +13,12 @@ def get_engine():
 
 
 def get_top_authors(limit=10):
-    """Get top authors by number of books."""
+    """
+    Get top authors by number of books.
+    
+    Dashboard Location: SQL Database Analytics > Author Analytics tab
+    Displays the most prolific authors sorted by number of books published.
+    """
     engine = get_engine()
     query = """
     SELECT 
@@ -36,7 +41,12 @@ def get_top_authors(limit=10):
 
 
 def get_rating_distribution():
-    """Get distribution of average ratings."""
+    """
+    Get distribution of average ratings.
+    
+    Dashboard Location: SQL Database Analytics > Rating Analysis tab > Rating Distribution Across Catalog
+    Shows a bar chart of how books are distributed across different rating buckets (0.0-5.0 scale).
+    """
     engine = get_engine()
     query = """
     SELECT 
@@ -55,7 +65,12 @@ def get_rating_distribution():
 
 
 def get_top_rated_books(limit=20, min_ratings=1000):
-    """Get top-rated books with minimum ratings."""
+    """
+    Get top-rated books with minimum ratings.
+    
+    Dashboard Location: SQL Database Analytics > Database Overview tab > Top-Rated Books Analysis
+    Displays books with the highest average ratings, filtered by minimum number of ratings.
+    """
     engine = get_engine()
     query = """
     SELECT 
@@ -78,7 +93,12 @@ def get_top_rated_books(limit=20, min_ratings=1000):
 
 
 def get_most_rated_books(limit=20):
-    """Get books with the most ratings."""
+    """
+    Get books with the most ratings.
+    
+    Dashboard Location: SQL Database Analytics > Database Overview tab > Most Reviewed Books
+    Shows books sorted by total number of ratings (review volume), useful for identifying trending titles.
+    """
     engine = get_engine()
     query = """
     SELECT 
@@ -100,7 +120,12 @@ def get_most_rated_books(limit=20):
 
 
 def get_books_by_language():
-    """Get book distribution by language."""
+    """
+    Get book distribution by language.
+    
+    Dashboard Location: SQL Database Analytics > Publication Trends tab > Language Distribution
+    Displays the distribution of books by language code with a bar chart showing top 10 languages.
+    """
     engine = get_engine()
     query = """
     SELECT 
@@ -121,7 +146,12 @@ def get_books_by_language():
 
 
 def get_publication_trends():
-    """Get publication trends over years."""
+    """
+    Get publication trends over years.
+    
+    Dashboard Location: SQL Database Analytics > Publication Trends tab > Publications Over Time
+    Shows a line chart of the number of books published per year from 1900-2025.
+    """
     engine = get_engine()
     query = """
     SELECT 
@@ -144,7 +174,12 @@ def get_publication_trends():
 
 
 def get_user_rating_stats(limit=20):
-    """Get statistics about most active users."""
+    """
+    Get statistics about most active users.
+    
+    Dashboard Location: SQL Database Analytics > Rating Analysis tab > Top Contributors
+    Displays the most active users by number of ratings submitted, including their average rating patterns.
+    """
     engine = get_engine()
     query = """
     SELECT 
@@ -167,7 +202,12 @@ def get_user_rating_stats(limit=20):
 
 
 def search_books(keyword="", min_rating=0.0):
-    """Search books by title or author."""
+    """
+    Search books by title or author.
+    
+    Dashboard Location: SQL Database Analytics > Rating Analysis tab > Advanced Book Search & Filtering
+    Allows users to search for books by title or author name with optional minimum rating filter.
+    """
     engine = get_engine()
     query = """
     SELECT 

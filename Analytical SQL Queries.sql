@@ -76,64 +76,59 @@ CREATE TABLE to_read (
 
 
 ---------------------------------------------------------
--- PART 2: IMPORT DATA (Local infile via terminal)
--- On macOS, MySQL Workbench does not allow LOCAL INFILE by default.
--- Therefore, all CSV loading was performed through the macOS Terminal.
+-- PART 2: IMPORT DATA
+-- 
+-- IMPORTANT: Update the file paths below to match your local setup.
+-- CSV files should be located in the Dashboard603/data/ directory.
 --
--- Steps followed on Mac:
--- 1. Locate the MySQL client binary:
---        /usr/local/mysql-9.4.0-macos15-x86_64/bin/mysql
+-- To import data:
+-- 1. Start MySQL with local infile enabled:
+--        mysql -u root -p --local-infile=1
 --
--- 2. Start MySQL with local infile enabled:
---        /usr/local/mysql-9.4.0-macos15-x86_64/bin/mysql \
---            -u root -p --local-infile=1
---
--- 3. Inside the MySQL terminal, verify that LOCAL INFILE is enabled:
+-- 2. Verify LOCAL INFILE is enabled:
 --        SHOW VARIABLES LIKE 'local_infile';
 --
--- 4. Run each LOAD DATA LOCAL INFILE command directly in the terminal
---    since Workbench blocks LOCAL file access on macOS for security.
---
--- 5. All CSV files were loaded successfully using:
---        LOAD DATA LOCAL INFILE 'path/to/file.csv'
---        INTO TABLE table_name
+-- 3. Update the paths below to point to your CSV files, then run:
+--        LOAD DATA LOCAL INFILE '/path/to/Dashboard603/data/books.csv'
+--        INTO TABLE books
 --        FIELDS TERMINATED BY ','
 --        ENCLOSED BY '"'
 --        IGNORE 1 ROWS;
 --
--- This method allows large CSVs (books, tags, book_tags, ratings, to_read)
--- to be imported quickly and cleanly on macOS.
+-- Note: On macOS, MySQL Workbench may block LOCAL INFILE for security.
+-- Use the MySQL terminal client instead.
 ---------------------------------------------------------
 
-LOAD DATA LOCAL INFILE '/Users/jasmines/Desktop/MMA/MMA MGTA603/Final project/books.csv'
-INTO TABLE books
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-IGNORE 1 ROWS;
-
-LOAD DATA LOCAL INFILE '/Users/jasmines/Desktop/MMA/MMA MGTA603/Final project/tags.csv'
-INTO TABLE tags
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-IGNORE 1 ROWS;
-
-LOAD DATA LOCAL INFILE '/Users/jasmines/Desktop/MMA/MMA MGTA603/Final project/book_tags.csv'
-INTO TABLE book_tags
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-IGNORE 1 ROWS;
-
-LOAD DATA LOCAL INFILE '/Users/jasmines/Desktop/MMA/MMA MGTA603/Final project/ratings.csv'
-INTO TABLE ratings
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-IGNORE 1 ROWS;
-
-LOAD DATA LOCAL INFILE '/Users/jasmines/Desktop/MMA/MMA MGTA603/Final project/to_read.csv'
-INTO TABLE to_read
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-IGNORE 1 ROWS;
+-- Example import commands (update paths as needed):
+-- LOAD DATA LOCAL INFILE '/path/to/Dashboard603/data/books.csv'
+-- INTO TABLE books
+-- FIELDS TERMINATED BY ','
+-- ENCLOSED BY '"'
+-- IGNORE 1 ROWS;
+--
+-- LOAD DATA LOCAL INFILE '/path/to/Dashboard603/data/tags.csv'
+-- INTO TABLE tags
+-- FIELDS TERMINATED BY ','
+-- ENCLOSED BY '"'
+-- IGNORE 1 ROWS;
+--
+-- LOAD DATA LOCAL INFILE '/path/to/Dashboard603/data/book_tags.csv'
+-- INTO TABLE book_tags
+-- FIELDS TERMINATED BY ','
+-- ENCLOSED BY '"'
+-- IGNORE 1 ROWS;
+--
+-- LOAD DATA LOCAL INFILE '/path/to/Dashboard603/data/ratings.csv'
+-- INTO TABLE ratings
+-- FIELDS TERMINATED BY ','
+-- ENCLOSED BY '"'
+-- IGNORE 1 ROWS;
+--
+-- LOAD DATA LOCAL INFILE '/path/to/Dashboard603/data/to_read.csv'
+-- INTO TABLE to_read
+-- FIELDS TERMINATED BY ','
+-- ENCLOSED BY '"'
+-- IGNORE 1 ROWS;
 
 
 
