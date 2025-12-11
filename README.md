@@ -11,8 +11,6 @@ A hybrid database analytics dashboard using Neo4j (graph database) and MySQL (re
 
 ![Research Poster](assets/poster.png)
 
-> **Note:** To add your poster, save it as `assets/poster.png` (or `.jpg`/`.pdf`) and update the path above if needed.
-
 ## Overview
 
 This project demonstrates the integration of two database paradigms:
