@@ -2,6 +2,17 @@
 
 A hybrid database analytics dashboard using Neo4j (graph database) and MySQL (relational database) to analyze book ratings, recommendations, and user behavior.
 
+## 📊 Research Poster
+
+**GLOBAL BOOK REVIEWS: Multi-Database Analytics for Personalized Book Discovery**
+
+*Authors: Jiaxi Wang, Mohammad Al-Maghaireh, Ratul Sarker*  
+*Lazaridis School of Business & Economics, Wilfrid Laurier University*
+
+![Research Poster](assets/poster.png)
+
+> **Note:** To add your poster, save it as `assets/poster.png` (or `.jpg`/`.pdf`) and update the path above if needed.
+
 ## Overview
 
 This project demonstrates the integration of two database paradigms:
@@ -105,6 +116,8 @@ project_603/
 │   └── lib/                   # JavaScript libraries
 ├── Analytical SQL Queries.sql # MySQL schema and queries
 ├── goodbooks-*.dump           # Neo4j database dump
+├── assets/                    # Images and media files
+│   └── poster.png             # Research poster
 ├── RUN.sh                     # Quick start script
 └── README.md                  # This file
 ```
